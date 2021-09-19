@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<script src="nipplejs.min.js"></script>
+		
+		
+		<title> Tinkerbot - Tinkersoc Basic Bot </title>
+			
+	</head>
+	
+	<body>
+
+    <div id="joystick" style="position: absolute; width:100%; height:100%"></div>
+  
+  <script>
+    var connection = new WebSocket('ws://' + '192.168.4.1' + ':81/', ['arduino']);
+	connection.onopen = function () {
+	  connection.send('Connect ' + new Date());
+	};
+	connection.onerror = function (error) {
+	  console.log('WebSocket Error ', error);
+	};
+	connection.onmessage = function (e) {
+	  console.log('Server: ', e.data);
+	};
+	connection.onclose = function () {
+	  console.log('WebSocket connection closed');
+	};
+	
+	
+    var joystick = nipplejs.create({
+      zone: document.getElementById('joystick'),
+      mode: 'static',
+      position: {
+        left: '50%',
+        top: '50%'
+      },
+      color: '#34629C',
+      size: 200
+    });
+    joystick.on('move', function (evt, data) {
+		console.log(data);
+		
+		if(data.distance < 20)
+		{
+			console.log('Deadzone Stop');
+			connection.send('S');
+		}
+		else
+		{
+			var cos = Math.cos(data.angle.radian);
+			var sin = Math.sin(data.angle.radian);
+		
+			var left = constrain(sin+cos, -1, 1);
+			var right = constrain(sin-cos, -1, 1);
+		
+			var pwm = distanceToPower(data.distance);
+			
+			var rPVM = 'R' + String(Math.round(left*pwm));
+			var lPVM = 'L' + String(Math.round(right*pwm));
+			
+			console.log(lPVM + rPVM);
+			connection.send(lPVM);
+			connection.send(rPVM)
+			
+		}
+	}).on('end', function (evt, data) {
+		connection.send('S');
+	});
+	
+	function distanceToPower(value) {
+		return 255 * (value - 20) / 80;
+	}
+	
+	function constrain(val, lower, upper){
+		return Math.min(Math.max(val, lower), upper);
+	}
+	
+  </script>
+		
+		
+	</body>
+
+</html>
