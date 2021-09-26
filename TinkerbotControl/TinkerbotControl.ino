@@ -19,6 +19,8 @@ Motor M2(0x30,_MOTOR_B, 1000);  //  Motor B
 void setup() {
 
   Serial.begin(115200);
+  Serial.println(); //clear junk line
+
 
   Serial.println(WiFi.softAP("BattleBot_0") ? "Ready" : "Failed!"); //  Start of the Soft Access Point
 
@@ -30,7 +32,7 @@ void setup() {
 
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-  
+
   //  Debug Prompt
   //Serial.println("WebSocket server started.");
 
@@ -55,30 +57,36 @@ void loop() {
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {  
     switch(type) {
-        case WStype_DISCONNECTED:
+        case WStype_DISCONNECTED: {
             Serial.printf("[%u] Disconnected!\n", num);
+            handleStop();
             break;
-        case WStype_CONNECTED:
-            {
-                IPAddress ip = webSocket.remoteIP(num);
-                Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-        
-                // send message to client
-                webSocket.sendTXT(num, "Connected");
+        }
+        case WStype_CONNECTED: {
+            IPAddress ip = webSocket.remoteIP(num);
+            Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
 
-                handleStop();                
-            }
+            // send message to client
+            webSocket.sendTXT(num, "Connected");
+
+            handleStop();
             break;
-        case WStype_TEXT:
-            String payloadString = (char * )payload;
+        }
+        case WStype_TEXT: {
+            char* str = (char*)payload;
+            int left = atoi(str);
+            char* fromSpace = strchr(str, ' ');
+            if(!fromSpace) break;
+            int right = atoi(fromSpace+1);
+
+            Serial.print(left);
+            Serial.print(" ");
+            Serial.println(right);
             
-            if(payloadString == "S"){ handleStop(); Serial.println("Stop"); }
-            else if(payloadString[0] == 'R'){ payloadString.remove(0, 1); M1.setmotor( left>0 ? _CW : _CCW, payloadString.toInt()); }
-            else if(payloadString[0] == 'L'){ payloadString.remove(0, 1); M2.setmotor( left>0 ? _CW : _CCW, payloadString.toInt()); }
-
-            Serial.println("Move Complete");
-
+            M1.setmotor(right>0 ? _CW : _CCW, abs(right));
+            M2.setmotor(left >0 ? _CW : _CCW, abs(left));
             break;
+        }
     }
 }
 

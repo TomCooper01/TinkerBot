@@ -18,6 +18,8 @@
   
   <script>
     var connection = new WebSocket('ws://' + '192.168.4.1' + ':81/', ['arduino']);
+	var packet = null;
+	
 	connection.onopen = function () {
 	  connection.send('Connect ' + new Date());
 	};
@@ -43,12 +45,12 @@
       size: 200
     });
     joystick.on('move', function (evt, data) {
-		console.log(data);
+		/*console.log(data);*/
 		
 		if(data.distance < 20)
 		{
 			console.log('Deadzone Stop');
-			connection.send('S');
+			connection.send('0 0');
 		}
 		else
 		{
@@ -57,19 +59,13 @@
 		
 			var left = constrain(sin+cos, -1, 1);
 			var right = constrain(sin-cos, -1, 1);
-		
 			var pwm = distanceToPower(data.distance);
 			
-			var rPVM = 'R' + String(Math.round(left*pwm));
-			var lPVM = 'L' + String(Math.round(right*pwm));
-			
-			console.log(lPVM + rPVM);
-			connection.send(lPVM);
-			connection.send(rPVM)
+			packet = String(Math.round(left*pwm)) + " " + String(Math.round(right*pwm));
 			
 		}
 	}).on('end', function (evt, data) {
-		connection.send('S');
+		connection.send('0 0');
 	});
 	
 	function distanceToPower(value) {
@@ -79,6 +75,16 @@
 	function constrain(val, lower, upper){
 		return Math.min(Math.max(val, lower), upper);
 	}
+	
+	function onInterval() { /* send a packet if one is pending */
+		if(connection.readyState==1 && packet) {
+			console.log(packet);
+			connection.send(packet);
+			packet = null;
+		}
+	}
+	
+	window.setInterval(onInterval, 250); /* send 4 packets a second */
 	
   </script>
 		
